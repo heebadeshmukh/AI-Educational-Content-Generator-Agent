@@ -1,5 +1,3 @@
-%%writefile app.py
-
 # Streamlit Web Interface for Educational AI Agent
 # Run with: streamlit run app.py
 
