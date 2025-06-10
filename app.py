@@ -8,21 +8,83 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import time
-import os
-import logging
 
-# Import the main agent
-from main import EducationalAIAgent, ContentType
+# Import the main agent (assuming the previous code is in educational_agent.py)
+# from educational_agent import EducationalAIAgent, ContentType
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# For demo purposes, we'll include a simplified version here
+class StreamlitEducationalAgent:
+    """Simplified version for Streamlit demo"""
+    
+    def __init__(self):
+        self.content_history = []
+    
+    def process_request(self, user_input, content_types, difficulty):
+        """Simulate processing a user request"""
+        # Simulate processing time
+        time.sleep(1)
+        
+        # Mock response
+        response = {
+            'material': {
+                'subject': user_input.split()[-1] if user_input.split() else 'General',
+                'difficulty': difficulty,
+                'key_concepts': ['Concept 1', 'Concept 2', 'Concept 3'],
+                'source': 'Wikipedia'
+            },
+            'generated_content': {}
+        }
+        
+        # Generate mock content based on selected types
+        if 'Quiz' in content_types:
+            response['generated_content']['quiz'] = {
+                'title': f'Quiz: {response["material"]["subject"]}',
+                'questions': [
+                    {
+                        'question': f'What is the main concept of {response["material"]["subject"]}?',
+                        'options': ['A) Option 1', 'B) Option 2', 'C) Option 3', 'D) Option 4'],
+                        'correct_answer': 'A',
+                        'explanation': 'This is the correct answer because...'
+                    }
+                ]
+            }
+        
+        if 'Flashcards' in content_types:
+            response['generated_content']['flashcards'] = {
+                'title': f'Flashcards: {response["material"]["subject"]}',
+                'cards': [
+                    {
+                        'front': f'What is {response["material"]["subject"]}?',
+                        'back': f'{response["material"]["subject"]} is an important concept that...',
+                        'concept': 'Basic Definition'
+                    }
+                ]
+            }
+        
+        if 'Summary' in content_types:
+            response['generated_content']['summary'] = {
+                'title': f'Summary: {response["material"]["subject"]}',
+                'overview': f'This summary covers the key aspects of {response["material"]["subject"]}.',
+                'key_points': ['Point 1', 'Point 2', 'Point 3'],
+                'concepts_explained': {
+                    'Concept 1': 'Explanation of concept 1',
+                    'Concept 2': 'Explanation of concept 2'
+                }
+            }
+        
+        # Add to history
+        self.content_history.append({
+            'timestamp': datetime.now(),
+            'subject': response['material']['subject'],
+            'content_types': content_types,
+            'difficulty': difficulty
+        })
+        
+        return response
 
 # Initialize the agent
-@st.cache_resource
-def get_agent():
-    """Initialize and cache the AI agent"""
-    return EducationalAIAgent()
+if 'agent' not in st.session_state:
+    st.session_state.agent = StreamlitEducationalAgent()
 
 # Page configuration
 st.set_page_config(
@@ -74,33 +136,8 @@ st.markdown("""
         padding: 1rem;
         margin: 0.5rem 0;
     }
-    
-    .error-message {
-        background: #f8d7da;
-        border: 1px solid #f5c6cb;
-        border-radius: 5px;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        color: #721c24;
-    }
-    
-    .success-message {
-        background: #d4edda;
-        border: 1px solid #c3e6cb;
-        border-radius: 5px;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        color: #155724;
-    }
 </style>
 """, unsafe_allow_html=True)
-
-# Initialize session state
-if 'agent' not in st.session_state:
-    st.session_state.agent = get_agent()
-
-if 'generation_history' not in st.session_state:
-    st.session_state.generation_history = []
 
 # Main header
 st.markdown("""
@@ -116,40 +153,23 @@ st.sidebar.markdown("---")
 
 # API Configuration
 st.sidebar.subheader("API Settings")
+gemini_key = st.sidebar.text_input("Gemini API Key", type="password", 
+                                  help="Enter your Google Gemini API key")
+youtube_key = st.sidebar.text_input("YouTube API Key", type="password",
+                                   help="Enter your YouTube Data API key")
 
-# Get API keys from environment or user input
-gemini_key = st.sidebar.text_input(
-    "Gemini API Key", 
-    type="password", 
-    value=os.getenv('GEMINI_API_KEY', ''),
-    help="Enter your Google Gemini API key"
-)
-
-youtube_key = st.sidebar.text_input(
-    "YouTube API Key", 
-    type="password",
-    value=os.getenv('YOUTUBE_API_KEY', ''),
-    help="Enter your YouTube Data API key (optional)"
-)
-
-# Set environment variables if provided
 if gemini_key:
-    os.environ['GEMINI_API_KEY'] = gemini_key
     st.sidebar.success("✅ Gemini API configured")
-else:
-    st.sidebar.warning("⚠️ Gemini API key required")
-
 if youtube_key:
-    os.environ['YOUTUBE_API_KEY'] = youtube_key
     st.sidebar.success("✅ YouTube API configured")
 
 st.sidebar.markdown("---")
 
 # Quick Stats
-if st.session_state.generation_history:
+if st.session_state.agent.content_history:
     st.sidebar.subheader("📊 Quick Stats")
-    total_content = len(st.session_state.generation_history)
-    subjects = [item['subject'] for item in st.session_state.generation_history]
+    total_content = len(st.session_state.agent.content_history)
+    subjects = [item['subject'] for item in st.session_state.agent.content_history]
     unique_subjects = len(set(subjects))
     
     st.sidebar.metric("Total Content Generated", total_content)
@@ -157,7 +177,7 @@ if st.session_state.generation_history:
     
     # Recent activity
     st.sidebar.subheader("🕒 Recent Activity")
-    for item in st.session_state.generation_history[-3:]:
+    for item in st.session_state.agent.content_history[-3:]:
         st.sidebar.text(f"• {item['subject']} ({item['difficulty']})")
 
 # Main content area
@@ -165,12 +185,6 @@ tab1, tab2, tab3, tab4 = st.tabs(["🎯 Generate Content", "📚 Content Library
 
 with tab1:
     st.header("Generate Educational Content")
-    
-    # Check if API key is configured
-    if not gemini_key:
-        st.error("🚨 Please configure your Gemini API key in the sidebar to use the AI features.")
-        st.info("Get your free API key at: https://makersuite.google.com/app/apikey")
-        st.stop()
     
     col1, col2 = st.columns([2, 1])
     
@@ -189,92 +203,40 @@ with tab1:
             help="Upload documents to create personalized study materials"
         )
         
-        uploaded_content = None
         if uploaded_file is not None:
             st.success(f"✅ File uploaded: {uploaded_file.name}")
-            
-            # Read file content
-            try:
-                if uploaded_file.type == "text/plain":
-                    uploaded_content = str(uploaded_file.read(), "utf-8")
-                elif uploaded_file.type == "application/pdf":
-                    # For PDF files, you'd need to implement PDF reading
-                    st.warning("PDF processing not implemented yet. Please use text files.")
-                elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                    # For DOCX files, you'd need to implement DOCX reading
-                    st.warning("DOCX processing not implemented yet. Please use text files.")
-            except Exception as e:
-                st.error(f"Error reading file: {e}")
     
     with col2:
         # Content type selection
         st.subheader("Content Types")
         content_types = st.multiselect(
             "Select content types to generate:",
-            ["quiz", "flashcards", "summary"],
-            default=["summary"],
-            help="Choose which types of learning materials to create"
+            ["Quiz", "Flashcards", "Summary", "Video Recommendations"],
+            default=["Summary"]
         )
         
         # Difficulty selection
-        difficulty_override = st.selectbox(
-            "Override Difficulty Level (optional):",
-            ["Auto-detect", "Beginner", "Intermediate", "Advanced"],
-            index=0,
-            help="Leave as 'Auto-detect' to let AI determine the appropriate level"
+        difficulty = st.selectbox(
+            "Difficulty Level:",
+            ["Beginner", "Intermediate", "Advanced"],
+            index=1
         )
         
-        # Additional options
-        if "quiz" in content_types:
+        # Number of items
+        if "Quiz" in content_types:
             num_questions = st.slider("Number of Quiz Questions", 3, 15, 5)
-        if "flashcards" in content_types:
+        if "Flashcards" in content_types:
             num_flashcards = st.slider("Number of Flashcards", 5, 25, 10)
     
     # Generate button
     if st.button("🚀 Generate Learning Materials", type="primary", use_container_width=True):
         if user_input.strip() or uploaded_file:
-            try:
-                # Show progress
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                status_text.text("🤖 Initializing AI agent...")
-                progress_bar.progress(10)
-                
-                # Prepare the request
-                request_text = user_input.strip() if user_input.strip() else f"Create learning materials for the uploaded content about {uploaded_file.name}"
-                
-                # Add content type preferences to the request
-                if content_types:
-                    content_type_text = ", ".join(content_types)
-                    request_text += f". I want {content_type_text}."
-                
-                status_text.text("🔍 Analyzing your request...")
-                progress_bar.progress(30)
-                
-                # Process the request using the real AI agent
-                with st.spinner("🤖 AI is creating your personalized learning materials..."):
-                    response = st.session_state.agent.process_user_request(
-                        request_text, 
-                        uploaded_content
+            with st.spinner("🤖 AI is creating your personalized learning materials..."):
+                try:
+                    # Process the request
+                    response = st.session_state.agent.process_request(
+                        user_input, content_types, difficulty
                     )
-                
-                progress_bar.progress(100)
-                status_text.text("✅ Content generated successfully!")
-                
-                # Check for errors
-                if 'error' in response:
-                    st.error(f"❌ Error: {response['error']}")
-                else:
-                    # Add to history
-                    history_item = {
-                        'timestamp': datetime.now(),
-                        'subject': response['material']['subject'],
-                        'content_types': content_types,
-                        'difficulty': response['material']['difficulty'],
-                        'response': response
-                    }
-                    st.session_state.generation_history.append(history_item)
                     
                     st.success("✅ Content generated successfully!")
                     
@@ -303,137 +265,84 @@ with tab1:
                     if 'quiz' in response['generated_content']:
                         with st.expander("📝 Quiz", expanded=True):
                             quiz = response['generated_content']['quiz']
-                            st.markdown(f"### {quiz.get('title', 'Quiz')}")
+                            st.markdown(f"### {quiz['title']}")
                             
-                            if 'questions' in quiz and quiz['questions']:
-                                for i, q in enumerate(quiz['questions'], 1):
-                                    st.markdown(f"""
-                                    <div class="quiz-question">
-                                        <strong>Question {i}:</strong> {q.get('question', 'No question text')}<br><br>
-                                        {'<br>'.join(q.get('options', []))}<br><br>
-                                        <strong>Correct Answer:</strong> {q.get('correct_answer', 'N/A')}<br>
-                                        <strong>Explanation:</strong> {q.get('explanation', 'No explanation provided')}
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                            else:
-                                st.warning("No quiz questions were generated.")
+                            for i, q in enumerate(quiz['questions'], 1):
+                                st.markdown(f"""
+                                <div class="quiz-question">
+                                    <strong>Question {i}:</strong> {q['question']}<br><br>
+                                    {'<br>'.join(q['options'])}<br><br>
+                                    <strong>Correct Answer:</strong> {q['correct_answer']}<br>
+                                    <strong>Explanation:</strong> {q['explanation']}
+                                </div>
+                                """, unsafe_allow_html=True)
                     
                     # Flashcards
                     if 'flashcards' in response['generated_content']:
                         with st.expander("🎴 Flashcards", expanded=True):
                             flashcards = response['generated_content']['flashcards']
-                            st.markdown(f"### {flashcards.get('title', 'Flashcards')}")
+                            st.markdown(f"### {flashcards['title']}")
                             
-                            if 'cards' in flashcards and flashcards['cards']:
-                                for i, card in enumerate(flashcards['cards'], 1):
-                                    st.markdown(f"""
-                                    <div class="flashcard">
-                                        <strong>Card {i} - Front:</strong> {card.get('front', 'No front text')}<br>
-                                        <strong>Back:</strong> {card.get('back', 'No back text')}<br>
-                                        <em>Concept: {card.get('concept', 'General')}</em>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                            else:
-                                st.warning("No flashcards were generated.")
+                            for i, card in enumerate(flashcards['cards'], 1):
+                                st.markdown(f"""
+                                <div class="flashcard">
+                                    <strong>Card {i} - Front:</strong> {card['front']}<br>
+                                    <strong>Back:</strong> {card['back']}<br>
+                                    <em>Concept: {card['concept']}</em>
+                                </div>
+                                """, unsafe_allow_html=True)
                     
                     # Summary
                     if 'summary' in response['generated_content']:
                         with st.expander("📄 Summary", expanded=True):
                             summary = response['generated_content']['summary']
-                            st.markdown(f"### {summary.get('title', 'Summary')}")
+                            st.markdown(f"### {summary['title']}")
                             
-                            if summary.get('overview'):
-                                st.markdown(f"""
-                                <div class="summary-section">
-                                    <h4>Overview</h4>
-                                    <p>{summary['overview']}</p>
-                                </div>
-                                """, unsafe_allow_html=True)
+                            st.markdown(f"""
+                            <div class="summary-section">
+                                <h4>Overview</h4>
+                                <p>{summary['overview']}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
                             
-                            if 'key_points' in summary and summary['key_points']:
+                            if 'key_points' in summary:
                                 st.markdown("#### Key Points")
                                 for point in summary['key_points']:
                                     st.write(f"• {point}")
                             
-                            if 'concepts_explained' in summary and summary['concepts_explained']:
+                            if 'concepts_explained' in summary:
                                 st.markdown("#### Concepts Explained")
                                 for concept, explanation in summary['concepts_explained'].items():
                                     st.write(f"**{concept}:** {explanation}")
-                            
-                            if 'practical_applications' in summary and summary['practical_applications']:
-                                st.markdown("#### Practical Applications")
-                                for app in summary['practical_applications']:
-                                    st.write(f"• {app}")
-                    
-                    # Learning Path Recommendations
-                    if 'learning_path' in response:
-                        with st.expander("🎯 Learning Path Recommendations"):
-                            learning_path = response['learning_path']
-                            
-                            # Wikipedia reference
-                            if 'wikipedia_reference' in learning_path and learning_path['wikipedia_reference']:
-                                st.markdown("#### 📖 Reference Material")
-                                wiki = learning_path['wikipedia_reference']
-                                st.write(f"**{wiki.get('title', 'Wikipedia Article')}**")
-                                if wiki.get('url'):
-                                    st.write(f"[Read more on Wikipedia]({wiki['url']})")
-                            
-                            # Video recommendations
-                            if 'recommended_videos' in learning_path and learning_path['recommended_videos']:
-                                st.markdown("#### 🎥 Recommended Videos")
-                                for video in learning_path['recommended_videos']:
-                                    st.write(f"• [{video.get('title', 'Video')}]({video.get('url', '#')}) - {video.get('channel', 'Unknown Channel')}")
-                            
-                            # Book recommendations
-                            if 'recommended_books' in learning_path and learning_path['recommended_books']:
-                                st.markdown("#### 📚 Recommended Books")
-                                for book in learning_path['recommended_books']:
-                                    authors = ', '.join(book.get('authors', ['Unknown Author']))
-                                    st.write(f"• **{book.get('title', 'Book')}** by {authors}")
                 
-                # Clear progress indicators
-                progress_bar.empty()
-                status_text.empty()
-                
-            except Exception as e:
-                st.error(f"❌ Error generating content: {str(e)}")
-                logger.error(f"Content generation error: {e}")
-                
-                # Show detailed error information
-                with st.expander("🔍 Error Details"):
-                    st.code(str(e))
-                    st.write("**Troubleshooting Tips:**")
-                    st.write("1. Check your Gemini API key is valid")
-                    st.write("2. Ensure you have internet connection")
-                    st.write("3. Try with a simpler topic")
-                    st.write("4. Check if you've exceeded API limits")
+                except Exception as e:
+                    st.error(f"❌ Error generating content: {str(e)}")
         else:
             st.warning("⚠️ Please enter a topic or upload a file to get started!")
 
 with tab2:
     st.header("📚 Content Library")
     
-    if st.session_state.generation_history:
+    if st.session_state.agent.content_history:
         # Filter options
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            subjects = list(set([item['subject'] for item in st.session_state.generation_history]))
+            subjects = list(set([item['subject'] for item in st.session_state.agent.content_history]))
             selected_subject = st.selectbox("Filter by Subject", ["All"] + subjects)
         
         with col2:
-            difficulties = list(set([item['difficulty'] for item in st.session_state.generation_history]))
+            difficulties = list(set([item['difficulty'] for item in st.session_state.agent.content_history]))
             selected_difficulty = st.selectbox("Filter by Difficulty", ["All"] + difficulties)
         
         with col3:
-            all_content_types = list(set([ct for item in st.session_state.generation_history for ct in item['content_types']]))
             content_type_filter = st.multiselect(
                 "Filter by Content Type", 
-                all_content_types
+                ["Quiz", "Flashcards", "Summary", "Video Recommendations"]
             )
         
         # Display filtered content
-        filtered_history = st.session_state.generation_history.copy()
+        filtered_history = st.session_state.agent.content_history.copy()
         
         if selected_subject != "All":
             filtered_history = [item for item in filtered_history if item['subject'] == selected_subject]
@@ -464,10 +373,6 @@ with tab2:
                 with col4:
                     st.write(item['timestamp'].strftime("%m/%d %H:%M"))
                 
-                # Add expand button to view content
-                if st.button(f"View Details", key=f"view_{i}"):
-                    st.json(item['response'])
-                
                 st.divider()
     else:
         st.info("📭 No content generated yet. Go to the 'Generate Content' tab to create your first learning materials!")
@@ -475,69 +380,97 @@ with tab2:
 with tab3:
     st.header("📈 Analytics Dashboard")
     
-    if st.session_state.generation_history:
-        # Get analytics from the agent
-        try:
-            analytics = st.session_state.agent.get_content_analytics()
+    if st.session_state.agent.content_history:
+        # Summary metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        total_content = len(st.session_state.agent.content_history)
+        subjects = [item['subject'] for item in st.session_state.agent.content_history]
+        unique_subjects = len(set(subjects))
+        
+        # Calculate average difficulty
+        difficulty_map = {"Beginner": 1, "Intermediate": 2, "Advanced": 3}
+        difficulties = [difficulty_map[item['difficulty']] for item in st.session_state.agent.content_history]
+        avg_difficulty = sum(difficulties) / len(difficulties)
+        avg_difficulty_text = ["Beginner", "Intermediate", "Advanced"][round(avg_difficulty) - 1]
+        
+        # Most popular content type
+        all_content_types = []
+        for item in st.session_state.agent.content_history:
+            all_content_types.extend(item['content_types'])
+        
+        from collections import Counter
+        content_type_counts = Counter(all_content_types)
+        most_popular_type = content_type_counts.most_common(1)[0][0] if content_type_counts else "None"
+        
+        with col1:
+            st.metric("Total Content", total_content)
+        with col2:
+            st.metric("Unique Subjects", unique_subjects)
+        with col3:
+            st.metric("Avg. Difficulty", avg_difficulty_text)
+        with col4:
+            st.metric("Popular Type", most_popular_type)
+        
+        # Charts
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Subject distribution
+            subject_counts = Counter(subjects)
+            if subject_counts:
+                fig_subjects = px.pie(
+                    values=list(subject_counts.values()),
+                    names=list(subject_counts.keys()),
+                    title="Content by Subject"
+                )
+                st.plotly_chart(fig_subjects, use_container_width=True)
+        
+        with col2:
+            # Content type distribution
+            if content_type_counts:
+                fig_types = px.bar(
+                    x=list(content_type_counts.keys()),
+                    y=list(content_type_counts.values()),
+                    title="Content Type Distribution"
+                )
+                st.plotly_chart(fig_types, use_container_width=True)
+        
+        # Timeline
+        st.subheader("📅 Content Generation Timeline")
+        
+        # Group by date
+        dates = [item['timestamp'].date() for item in st.session_state.agent.content_history]
+        date_counts = Counter(dates)
+        
+        if date_counts:
+            timeline_df = pd.DataFrame([
+                {"Date": date, "Count": count} 
+                for date, count in sorted(date_counts.items())
+            ])
             
-            # Summary metrics
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Total Content", analytics.get('total_content_generated', 0))
-            with col2:
-                st.metric("Content Types", len(analytics.get('content_type_distribution', {})))
-            with col3:
-                st.metric("Subjects Covered", len(analytics.get('subject_distribution', {})))
-            with col4:
-                recent_count = len(analytics.get('recent_activity', []))
-                st.metric("Recent Items", recent_count)
-            
-            # Charts
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Subject distribution
-                subject_dist = analytics.get('subject_distribution', {})
-                if subject_dist:
-                    fig_subjects = px.pie(
-                        values=list(subject_dist.values()),
-                        names=list(subject_dist.keys()),
-                        title="Content by Subject"
-                    )
-                    st.plotly_chart(fig_subjects, use_container_width=True)
-            
-            with col2:
-                # Content type distribution
-                content_type_dist = analytics.get('content_type_distribution', {})
-                if content_type_dist:
-                    fig_types = px.bar(
-                        x=list(content_type_dist.keys()),
-                        y=list(content_type_dist.values()),
-                        title="Content Type Distribution"
-                    )
-                    st.plotly_chart(fig_types, use_container_width=True)
-            
-            # Recent activity
-            st.subheader("🕒 Recent Activity")
-            recent_activity = analytics.get('recent_activity', [])
-            if recent_activity:
-                activity_df = pd.DataFrame(recent_activity)
-                st.dataframe(activity_df, use_container_width=True)
-            else:
-                st.info("No recent activity to display")
-                
-        except Exception as e:
-            st.error(f"Error loading analytics: {e}")
-            # Fallback to session state analytics
-            total_content = len(st.session_state.generation_history)
-            subjects = [item['subject'] for item in st.session_state.generation_history]
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Total Content", total_content)
-            with col2:
-                st.metric("Unique Subjects", len(set(subjects)))
+            fig_timeline = px.line(
+                timeline_df, 
+                x="Date", 
+                y="Count", 
+                title="Daily Content Generation",
+                markers=True
+            )
+            st.plotly_chart(fig_timeline, use_container_width=True)
+        
+        # Recent activity table
+        st.subheader("🕒 Recent Activity")
+        recent_df = pd.DataFrame([
+            {
+                "Subject": item['subject'],
+                "Content Types": ", ".join(item['content_types']),
+                "Difficulty": item['difficulty'],
+                "Timestamp": item['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
+            }
+            for item in reversed(st.session_state.agent.content_history[-10:])
+        ])
+        
+        st.dataframe(recent_df, use_container_width=True)
         
     else:
         st.info("📊 No data available yet. Generate some content to see analytics!")
@@ -554,7 +487,7 @@ with tab4:
         
         1. **Google Gemini API** (Required)
            - Get your free API key at: https://makersuite.google.com/app/apikey
-           - Free tier: 15 requests per minute
+           - Free tier: 60 requests per minute
         
         2. **YouTube Data API v3** (Optional)
            - Get your API key at: https://console.developers.google.com/
@@ -568,37 +501,6 @@ with tab4:
            - No API key required
            - Rate limit: 100 requests per second
         """)
-        
-        # Test API connections
-        if st.button("🧪 Test API Connections"):
-            test_results = {}
-            
-            # Test Gemini API
-            if gemini_key:
-                try:
-                    # Simple test request
-                    test_agent = EducationalAIAgent()
-                    result = test_agent.reasoning_engine.analyze_user_request("test")
-                    test_results['Gemini API'] = "✅ Working"
-                except Exception as e:
-                    test_results['Gemini API'] = f"❌ Error: {str(e)}"
-            else:
-                test_results['Gemini API'] = "⚠️ No API key provided"
-            
-            # Test Wikipedia API
-            try:
-                import requests
-                response = requests.get("https://en.wikipedia.org/api/rest_v1/page/summary/test", timeout=5)
-                if response.status_code == 200:
-                    test_results['Wikipedia API'] = "✅ Working"
-                else:
-                    test_results['Wikipedia API'] = f"❌ Status: {response.status_code}"
-            except Exception as e:
-                test_results['Wikipedia API'] = f"❌ Error: {str(e)}"
-            
-            # Display results
-            for api, status in test_results.items():
-                st.write(f"**{api}:** {status}")
     
     # Content Generation Settings
     st.subheader("⚙️ Content Generation Settings")
@@ -606,31 +508,30 @@ with tab4:
     col1, col2 = st.columns(2)
     
     with col1:
-        default_content_types = st.multiselect(
-            "Default Content Types",
-            ["quiz", "flashcards", "summary"],
-            default=["summary"]
+        default_difficulty = st.selectbox(
+            "Default Difficulty Level",
+            ["Beginner", "Intermediate", "Advanced"],
+            index=1
         )
         
-        max_concepts = st.slider(
-            "Maximum Key Concepts to Extract",
-            min_value=5,
+        default_quiz_questions = st.slider(
+            "Default Quiz Questions",
+            min_value=3,
             max_value=20,
-            value=10
+            value=5
         )
     
     with col2:
-        generation_timeout = st.slider(
-            "Generation Timeout (seconds)",
-            min_value=30,
-            max_value=300,
-            value=120
+        default_flashcards = st.slider(
+            "Default Flashcards",
+            min_value=5,
+            max_value=30,
+            value=10
         )
         
-        enable_debug = st.checkbox(
-            "Enable Debug Mode",
-            value=False,
-            help="Show detailed logging information"
+        auto_generate_videos = st.checkbox(
+            "Auto-generate video recommendations",
+            value=True
         )
     
     # Data Management
@@ -640,16 +541,15 @@ with tab4:
     
     with col1:
         if st.button("📤 Export History", use_container_width=True):
-            if st.session_state.generation_history:
+            if st.session_state.agent.content_history:
                 # Create export data
                 export_data = []
-                for item in st.session_state.generation_history:
+                for item in st.session_state.agent.content_history:
                     export_data.append({
                         'Subject': item['subject'],
                         'Content_Types': ', '.join(item['content_types']),
                         'Difficulty': item['difficulty'],
-                        'Timestamp': item['timestamp'].isoformat(),
-                        'Key_Concepts': ', '.join(item['response']['material']['key_concepts'][:5])
+                        'Timestamp': item['timestamp'].isoformat()
                     })
                 
                 # Convert to CSV
@@ -667,25 +567,16 @@ with tab4:
     
     with col2:
         if st.button("🗑️ Clear History", use_container_width=True):
-            if st.session_state.generation_history:
+            if st.session_state.agent.content_history:
                 if st.button("⚠️ Confirm Clear", type="secondary"):
-                    st.session_state.generation_history = []
+                    st.session_state.agent.content_history = []
                     st.success("History cleared!")
-                    st.rerun()
+                    st.experimental_rerun()
             else:
                 st.info("History is already empty")
     
     with col3:
-        st.metric("Current Storage", f"{len(st.session_state.generation_history)} items")
-    
-    # Agent Status
-    st.subheader("🤖 Agent Status")
-    try:
-        agent_analytics = st.session_state.agent.get_content_analytics()
-        st.success("✅ Agent is operational")
-        st.write(f"Agent has generated {agent_analytics.get('total_content_generated', 0)} pieces of content")
-    except Exception as e:
-        st.error(f"❌ Agent error: {e}")
+        st.metric("Current Storage", f"{len(st.session_state.agent.content_history)} items")
     
     # About section
     st.subheader("ℹ️ About")
@@ -697,7 +588,8 @@ with tab4:
     - **Quiz Generation**: Creates multiple-choice questions with explanations
     - **Flashcard Creation**: Generates front/back flashcard pairs
     - **Smart Summaries**: Produces structured overviews with key concepts
-    - **Learning Paths**: Suggests progression routes with multimedia resources
+    - **Video Recommendations**: Finds relevant educational videos
+    - **Learning Paths**: Suggests progression routes
     
     **Technologies Used:**
     - Google Gemini Pro for content generation
@@ -716,6 +608,6 @@ st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #666; padding: 1rem;">
     🎓 Educational AI Agent | Built with Streamlit & Google Gemini | 
-    <a href="https://github.com" target="_blank">Powered by AI</a>
+    <a href="https://github.com" target="_blank">View Source Code</a>
 </div>
 """, unsafe_allow_html=True)
