@@ -1,5 +1,4 @@
-# Educational AI Agent - Comprehensive Implementation
-# This agent creates personalized educational content using free APIs and Gemini
+# Educational AI Agent
 
 import os
 import json
@@ -11,7 +10,7 @@ from enum import Enum
 import logging
 from datetime import datetime
 
-# Core dependencies
+
 import google.generativeai as genai
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
@@ -24,7 +23,7 @@ import os
 from google.colab import userdata
 os.environ['GEMINI_API_KEY'] = userdata.get('GEMINI_API_KEY')
 
-# Configuration
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,7 @@ class APIManager:
         # Initialize Gemini
         if self.apis['gemini_key']:
             genai.configure(api_key=self.apis['gemini_key'])
-            self.gemini_model = genai.GenerativeModel('gemini-pro')
+            self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-001')
         
     def get_wikipedia_content(self, topic: str, language: str = 'en') -> Dict[str, Any]:
         """Free Wikipedia API for educational content"""
