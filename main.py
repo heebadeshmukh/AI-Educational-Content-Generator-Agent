@@ -1,5 +1,3 @@
-# Educational AI Agent
-
 import os
 import json
 import requests
@@ -19,7 +17,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import os
 from google.colab import userdata
 os.environ['GEMINI_API_KEY'] = userdata.get('GEMINI_API_KEY')
 
@@ -60,7 +57,6 @@ class APIManager:
             'openweather_key': os.getenv('OPENWEATHER_API_KEY')  # For demo purposes
         }
         
-        # Initialize Gemini
         if self.apis['gemini_key']:
             genai.configure(api_key=self.apis['gemini_key'])
             self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-001')
